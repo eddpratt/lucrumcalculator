@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucrum Tax Savings Calculator v2.3</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        
+        // Lucide React icons as inline SVGs
+        const DollarSign = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+        
+        const TrendingDown = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+            </svg>
+        );
+        
+        const Calculator = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="4" y="2" width="16" height="20" rx="2" strokeWidth={2}/>
+                <rect x="8" y="6" width="8" height="4" strokeWidth={2}/>
+                <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" strokeWidth={2} strokeLinecap="round"/>
+            </svg>
+        );
+        
+        const Lightbulb = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+        );
+        
+        const CheckCircle = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+        
+        const AlertTriangle = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        );
+        
+        const RefreshCw = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+        );
+        
+        const Info = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+        
+        const ChevronDown = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+        );
+        
+        const ChevronUp = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+        );
+
+        const LucrumTaxCalculator = () => {
+            const [taxableIncome, setTaxableIncome] = useState('');
+            const [equipmentPurchase, setEquipmentPurchase] = useState('');
+            const [selectedState, setSelectedState] = useState('');
+            const [filingStatus, setFilingStatus] = useState('single');
+            const [selfEmployed, setSelfEmployed] = useState(false);
+            const [showInfo, setShowInfo] = useState(false);
+
+            // State Data: [Name, Rate, Section179Limit, Section179Conform, BonusConform]
+            const stateData = {
+                'AL': ['Alabama', 0.05, -1, true, true],
+                'AK': ['Alaska', 0, -1, true, true],
+                'AZ': ['Arizona', 0.025, -1, true, false],
+                'AR': ['Arkansas', 0.044, -1, true, true],
+                'CA': ['California', 0.133, 25000, false, false],
+                'CO': ['Colorado', 0.044, -1, true, true],
+                'CT': ['Connecticut', 0.0699, 25000, false, false],
+                'DE': ['Delaware', 0.066, -1, true, true],
+                'DC': ['D.C.', 0.1095, -1, true, true],
+                'FL': ['Florida', 0, -1, true, true],
+                'GA': ['Georgia', 0.0575, 25000, false, false],
+                'HI': ['Hawaii', 0.11, 25000, false, false],
+                'ID': ['Idaho', 0.058, -1, true, true],
+                'IL': ['Illinois', 0.0495, -1, true, false],
+                'IN': ['Indiana', 0.031, -1, true, true],
+                'IA': ['Iowa', 0.06, -1, true, true],
+                'KS': ['Kansas', 0.057, -1, true, true],
+                'KY': ['Kentucky', 0.04, -1, true, true],
+                'LA': ['Louisiana', 0.0425, -1, true, true],
+                'ME': ['Maine', 0.0715, -1, true, true],
+                'MD': ['Maryland', 0.0575, -1, true, true],
+                'MA': ['Massachusetts', 0.05, -1, true, true],
+                'MI': ['Michigan', 0.0425, 1250000, false, false],
+                'MN': ['Minnesota', 0.0985, 25000, false, false],
+                'MS': ['Mississippi', 0.05, -1, true, true],
+                'MO': ['Missouri', 0.048, -1, true, true],
+                'MT': ['Montana', 0.0675, -1, true, true],
+                'NE': ['Nebraska', 0.0684, -1, true, true],
+                'NV': ['Nevada', 0, -1, true, true],
+                'NH': ['New Hampshire', 0, -1, true, true],
+                'NJ': ['New Jersey', 0.1075, 25000, false, false],
+                'NM': ['New Mexico', 0.059, -1, true, true],
+                'NY': ['New York', 0.109, -1, true, false],
+                'NC': ['North Carolina', 0.025, 25000, false, false],
+                'ND': ['North Dakota', 0.029, -1, true, true],
+                'OH': ['Ohio', 0.035, -1, true, false],
+                'OK': ['Oklahoma', 0.0475, -1, true, true],
+                'OR': ['Oregon', 0.099, -1, true, true],
+                'PA': ['Pennsylvania', 0.0307, -1, true, true],
+                'RI': ['Rhode Island', 0.0599, -1, true, true],
+                'SC': ['South Carolina', 0.062, -1, true, false],
+                'SD': ['South Dakota', 0, -1, true, true],
+                'TN': ['Tennessee', 0, -1, true, true],
+                'TX': ['Texas', 0, -1, true, true],
+                'UT': ['Utah', 0.0465, -1, true, true],
+                'VT': ['Vermont', 0.0875, -1, true, true],
+                'VA': ['Virginia', 0.0575, -1, true, true],
+                'WA': ['Washington', 0, -1, true, true],
+                'WV': ['West Virginia', 0.065, -1, true, true],
+                'WI': ['Wisconsin', 0.0765, -1, true, true],
+                'WY': ['Wyoming', 0, -1, true, true]
+            };
+
+            const formatCurrency = (value) => {
+                if (!value && value !== 0) return '';
+                const num = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
+                if (isNaN(num)) return '';
+                return num.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            };
+
+            const formatInputValue = (value) => {
+                if (!value) return '';
+                const number = value.replace(/[^0-9]/g, '');
+                if (!number) return '';
+                return parseInt(number).toLocaleString('en-US');
+            };
+
+            const getRecommendedPurchase = (income) => {
+                const num = parseFloat(income.toString().replace(/,/g, ''));
+                if (isNaN(num)) return 0;
+                if (num < 250000) return 250000;
+                const cappedIncome = Math.min(num, 4000000);
+                const increment = 50000;
+                const recommended = Math.round(cappedIncome / increment) * increment;
+                return recommended;
+            };
+
+            const handleIncomeChange = (e) => {
+                const formatted = formatInputValue(e.target.value);
+                setTaxableIncome(formatted);
+            };
+
+            const handlePurchaseChange = (e) => {
+                const formatted = formatInputValue(e.target.value);
+                setEquipmentPurchase(formatted);
+            };
+
+            const useRecommendedAmount = () => {
+                const income = parseFloat(taxableIncome.replace(/,/g, ''));
+                const recommended = getRecommendedPurchase(income);
+                setEquipmentPurchase(recommended.toLocaleString('en-US'));
+            };
+
+            const resetCalculator = () => {
+                setTaxableIncome('');
+                setEquipmentPurchase('');
+                setSelectedState('');
+                setFilingStatus('single');
+                setSelfEmployed(false);
+            };
+
+            const federalTaxBrackets = {
+                single: [
+                    { limit: 11925, rate: 0.10 },
+                    { limit: 48475, rate: 0.12 },
+                    { limit: 103350, rate: 0.22 },
+                    { limit: 197300, rate: 0.24 },
+                    { limit: 250525, rate: 0.32 },
+                    { limit: 626350, rate: 0.35 },
+                    { limit: Infinity, rate: 0.37 }
+                ],
+                married: [
+                    { limit: 23850, rate: 0.10 },
+                    { limit: 96950, rate: 0.12 },
+                    { limit: 206700, rate: 0.22 },
+                    { limit: 394600, rate: 0.24 },
+                    { limit: 501050, rate: 0.32 },
+                    { limit: 751600, rate: 0.35 },
+                    { limit: Infinity, rate: 0.37 }
+                ]
+            };
+
+            const calculateFederalTax = (income, status) => {
+                const brackets = federalTaxBrackets[status];
+                let tax = 0;
+                let previousLimit = 0;
+
+                for (const bracket of brackets) {
+                    if (income <= bracket.limit) {
+                        tax += (income - previousLimit) * bracket.rate;
+                        break;
+                    } else {
+                        tax += (bracket.limit - previousLimit) * bracket.rate;
+                        previousLimit = bracket.limit;
+                    }
+                }
+
+                return tax;
+            };
+
+            const calculateSelfEmploymentTax = (netIncome, status) => {
+                if (netIncome <= 0) return 0;
+                const seIncome = netIncome * 0.9235;
+                const ssWageBase = 176000;
+                const socialSecurityTax = Math.min(seIncome, ssWageBase) * 0.124;
+                const medicareTax = seIncome * 0.029;
+                const additionalMedicareThreshold = status === 'married' ? 250000 : 200000;
+                const additionalMedicareTax = seIncome > additionalMedicareThreshold 
+                    ? (seIncome - additionalMedicareThreshold) * 0.009 
+                    : 0;
+                return socialSecurityTax + medicareTax + additionalMedicareTax;
+            };
+
+            const calculateFederalDeduction = (purchase) => {
+                const purchaseNum = typeof purchase === 'string' ? parseFloat(purchase.replace(/,/g, '')) : purchase;
+                let section179Amount = 0;
+                if (purchaseNum <= 4000000) {
+                    section179Amount = Math.min(purchaseNum, 2500000);
+                } else if (purchaseNum < 6500000) {
+                    const reduction = purchaseNum - 4000000;
+                    section179Amount = Math.max(0, 2500000 - reduction);
+                }
+                const bonusAmount = purchaseNum - section179Amount;
+                return {
+                    section179: section179Amount,
+                    bonus: bonusAmount,
+                    total: section179Amount + bonusAmount
+                };
+            };
+
+            const calculateStateDeduction = (purchase, stateCode) => {
+                if (!stateCode || !stateData[stateCode]) return { section179: 0, bonus: 0, total: 0, addbacks: { section179: 0, bonus: 0 } };
+                const [name, rate, section179Limit, section179Conform, bonusConform] = stateData[stateCode];
+                const purchaseNum = typeof purchase === 'string' ? parseFloat(purchase.replace(/,/g, '')) : purchase;
+                const federalCalc = calculateFederalDeduction(purchase);
+                let stateSection179 = 0;
+                let section179Addback = 0;
+
+                if (section179Conform && section179Limit === -1) {
+                    stateSection179 = federalCalc.section179;
+                } else if (section179Limit > 0) {
+                    stateSection179 = Math.min(federalCalc.section179, section179Limit);
+                    section179Addback = Math.max(0, federalCalc.section179 - section179Limit);
+                } else if (section179Limit === 0 || !section179Conform) {
+                    section179Addback = federalCalc.section179;
+                }
+
+                let stateBonus = 0;
+                let bonusAddback = 0;
+                if (bonusConform) {
+                    stateBonus = federalCalc.bonus;
+                } else {
+                    bonusAddback = federalCalc.bonus;
+                }
+
+                return {
+                    section179: stateSection179,
+                    bonus: stateBonus,
+                    total: stateSection179 + stateBonus,
+                    addbacks: {
+                        section179: section179Addback,
+                        bonus: bonusAddback
+                    }
+                };
+            };
+
+            const getStateWarning = (stateCode) => {
+                if (!stateCode || !equipmentPurchase || !stateData[stateCode]) return null;
+                const [name, rate] = stateData[stateCode];
+                const stateCalc = calculateStateDeduction(equipmentPurchase, stateCode);
+                const { section179: section179Addback, bonus: bonusAddback } = stateCalc.addbacks;
+                if (section179Addback === 0 && bonusAddback === 0) return null;
+                const totalAddback = section179Addback + bonusAddback;
+                const macrsYear1 = totalAddback * 0.20;
+                let message = '';
+
+                if (section179Addback > 0) {
+                    const [, , section179Limit] = stateData[stateCode];
+                    if (section179Limit === 0) {
+                        message += `${name} requires full addback of Section 179 (${formatCurrency(section179Addback)}). `;
+                    } else if (section179Limit > 0) {
+                        message += `${name} limits Section 179 to ${formatCurrency(section179Limit)}. Addback: ${formatCurrency(section179Addback)}. `;
+                    }
+                }
+
+                if (bonusAddback > 0) {
+                    message += `${name} does not conform to bonus depreciation. Addback: ${formatCurrency(bonusAddback)}. `;
+                }
+
+                message += `Year 1 MACRS depreciation (20%) may offset ${formatCurrency(macrsYear1)}.`;
+                return message;
+            };
+
+            const calculateResults = () => {
+                const income = parseFloat(taxableIncome.replace(/,/g, ''));
+                const purchase = parseFloat(equipmentPurchase.replace(/,/g, ''));
+
+                if (isNaN(income) || isNaN(purchase) || purchase <= 0) {
+                    return null;
+                }
+
+                const federalDeduction = calculateFederalDeduction(purchase);
+                const federalTaxBefore = calculateFederalTax(income, filingStatus);
+                const federalTaxableAfter = Math.max(0, income - federalDeduction.total);
+                const federalTaxAfter = calculateFederalTax(federalTaxableAfter, filingStatus);
+                const federalSavings = federalTaxBefore - federalTaxAfter;
+
+                let seTaxBefore = 0;
+                let seTaxAfter = 0;
+                let seTaxSavings = 0;
+
+                if (selfEmployed) {
+                    seTaxBefore = calculateSelfEmploymentTax(income, filingStatus);
+                    seTaxAfter = calculateSelfEmploymentTax(federalTaxableAfter, filingStatus);
+                    seTaxSavings = seTaxBefore - seTaxAfter;
+                }
+
+                let stateSavings = 0;
+                let stateTaxBefore = 0;
+                let stateTaxAfter = 0;
+                let stateDeduction = { section179: 0, bonus: 0, total: 0 };
+
+                if (selectedState && stateData[selectedState]) {
+                    const [name, rate] = stateData[selectedState];
+                    if (rate > 0) {
+                        stateDeduction = calculateStateDeduction(purchase, selectedState);
+                        stateTaxBefore = income * rate;
+                        const stateTaxableAfter = Math.max(0, income - stateDeduction.total);
+                        stateTaxAfter = stateTaxableAfter * rate;
+                        stateSavings = stateTaxBefore - stateTaxAfter;
+                    }
+                }
+
+                const totalSavings = federalSavings + seTaxSavings + stateSavings;
+                const downPayment = purchase * 0.20;
+                const netBenefit = totalSavings - downPayment;
+                const effectiveReduction = (totalSavings / purchase) * 100;
+
+                return {
+                    income,
+                    purchase,
+                    federalDeduction,
+                    stateDeduction,
+                    federalTaxBefore,
+                    federalTaxAfter,
+                    stateTaxBefore,
+                    stateTaxAfter,
+                    federalSavings,
+                    seTaxBefore,
+                    seTaxAfter,
+                    seTaxSavings,
+                    stateSavings,
+                    totalSavings,
+                    downPayment,
+                    netBenefit,
+                    effectiveReduction,
+                    newTaxableIncome: federalTaxableAfter
+                };
+            };
+
+            const results = calculateResults();
+            const recommendedPurchase = taxableIncome ? getRecommendedPurchase(parseFloat(taxableIncome.replace(/,/g, ''))) : 0;
+            const showRecommendation = taxableIncome && recommendedPurchase > 0;
+            const stateWarning = selectedState ? getStateWarning(selectedState) : null;
+            const macrsSchedule = [20, 32, 19.2, 11.52, 11.52, 5.76];
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-8">
+                    <div className="max-w-6xl mx-auto">
+                        
+                        {/* Legal Disclaimer */}
+                        <div className="bg-red-50 border-2 border-red-500 rounded-lg p-6 mb-8">
+                            <div className="flex items-start gap-3">
+                                <AlertTriangle className="w-8 h-8 text-red-600 flex-shrink-0 mt-1" />
+                                <div>
+                                    <h2 className="text-xl font-bold text-red-900 mb-3">IMPORTANT LEGAL DISCLAIMER - READ CAREFULLY</h2>
+                                    <ul className="space-y-2 text-sm text-red-800">
+                                        <li><strong>FOR EDUCATIONAL PURPOSES ONLY:</strong> This calculator provides estimates for educational purposes and should not be considered tax, legal, or financial advice.</li>
+                                        <li><strong>NO PROFESSIONAL RELATIONSHIP:</strong> Use of this calculator does not create an attorney-client, accountant-client, or advisor-client relationship.</li>
+                                        <li><strong>NO WARRANTIES:</strong> This calculator is provided "as is" without warranties of any kind, express or implied, including but not limited to accuracy, completeness, or fitness for a particular purpose.</li>
+                                        <li><strong>CONSULT PROFESSIONALS:</strong> Always consult with qualified tax professionals, CPAs, and financial advisors before making equipment purchase decisions or tax planning strategies.</li>
+                                        <li><strong>STATE-SPECIFIC RULES:</strong> State tax conformity rules are complex and change frequently. Verify current rules with state tax authorities or qualified tax professionals.</li>
+                                        <li><strong>INDIVIDUAL CIRCUMSTANCES:</strong> Your actual tax savings will vary based on individual circumstances, entity structure, state residency, and other factors not captured in this calculator.</li>
+                                        <li><strong>NO LIABILITY:</strong> The creators and distributors of this calculator assume no liability for any decisions made based on its calculations or any errors or omissions in the information provided.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-2xl p-8 mb-8 text-white">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <Calculator className="w-16 h-16" />
+                                    <div>
+                                        <h1 className="text-4xl font-bold mb-2">Lucrum Tax Savings Calculator</h1>
+                                        <p className="text-blue-100 text-lg">v2.3 - Section 179 + 100% Bonus Depreciation (OBBBA)</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={resetCalculator}
+                                    className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-lg"
+                                >
+                                    <RefreshCw className="w-5 h-5" />
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Input Section */}
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <h2 className="text-xl font-semibold mb-4 text-gray-800">Your Information</h2>
+                            
+                            <div className="space-y-4">
+                                {/* Filing Status */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Filing Status
+                                    </label>
+                                    <select
+                                        value={filingStatus}
+                                        onChange={(e) => setFilingStatus(e.target.value)}
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                        <option value="single">Single</option>
+                                        <option value="married">Married Filing Jointly</option>
+                                    </select>
+                                </div>
+
+                                {/* Self-Employed Status */}
+                                <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                    <input
+                                        type="checkbox"
+                                        id="selfEmployed"
+                                        checked={selfEmployed}
+                                        onChange={(e) => setSelfEmployed(e.target.checked)}
+                                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <label htmlFor="selfEmployed" className="text-sm font-medium text-gray-700 cursor-pointer">
+                                        I am self-employed (includes self-employment tax savings)
+                                    </label>
+                                </div>
+
+                                {/* Taxable Income */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <DollarSign className="inline w-4 h-4" /> Taxable Income (2025)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={taxableIncome}
+                                        onChange={handleIncomeChange}
+                                        placeholder="Enter your taxable income"
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </div>
+
+                                {/* Auto-suggested Purchase */}
+                                {showRecommendation && (
+                                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                                        <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-blue-900 mb-1">Suggested purchase: {formatCurrency(recommendedPurchase)}</h3>
+                                            <p className="text-sm text-blue-700 mb-3">Based on your income level</p>
+                                            <button
+                                                onClick={useRecommendedAmount}
+                                                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                                            >
+                                                Use This Amount
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Equipment Purchase */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <TrendingDown className="inline w-4 h-4" /> Lucrum Equipment Purchase Amount
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={equipmentPurchase}
+                                        onChange={handlePurchaseChange}
+                                        placeholder="Enter equipment purchase amount"
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </div>
+
+                                {/* State Selection */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        State (Optional - for state tax calculation)
+                                    </label>
+                                    <select
+                                        value={selectedState}
+                                        onChange={(e) => setSelectedState(e.target.value)}
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                        <option value="">Select a state...</option>
+                                        {Object.entries(stateData)
+                                            .sort((a, b) => a[1][0].localeCompare(b[1][0]))
+                                            .map(([code, [name, rate]]) => (
+                                                <option key={code} value={code}>
+                                                    {name} {rate > 0 ? `(${(rate * 100).toFixed(2)}%)` : '(No Income Tax)'}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* State Warning */}
+                        {stateWarning && (
+                            <div className="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-4 mb-6 flex items-start gap-3">
+                                <AlertTriangle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1" />
+                                <div>
+                                    <h3 className="font-bold text-yellow-900 mb-2">State Tax Conformity Notice</h3>
+                                    <p className="text-sm text-yellow-800">{stateWarning}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Results Section */}
+                        {results && (
+                            <>
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                                    {/* Net Benefit */}
+                                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-xl p-6 text-white">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <CheckCircle className="w-8 h-8" />
+                                            <h3 className="text-lg font-semibold">NET BENEFIT</h3>
+                                        </div>
+                                        <p className="text-4xl font-bold mb-2">{formatCurrency(results.netBenefit)}</p>
+                                        <p className="text-sm text-green-100">
+                                            ROI: {results.downPayment > 0 ? ((results.totalSavings / results.downPayment) * 100).toFixed(0) : 0}% on 20% down
+                                            {selfEmployed && results.seTaxSavings > 0 && ' (includes SE tax)'}
+                                        </p>
+                                    </div>
+
+                                    {/* Total Tax Savings */}
+                                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-xl p-6 text-white">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <DollarSign className="w-8 h-8" />
+                                            <h3 className="text-lg font-semibold">TOTAL TAX SAVINGS</h3>
+                                        </div>
+                                        <p className="text-4xl font-bold mb-2">{formatCurrency(results.totalSavings)}</p>
+                                        <p className="text-sm text-blue-100">
+                                            {selfEmployed && results.seTaxSavings > 0 
+                                                ? 'Federal + Self-Employment + State combined'
+                                                : selectedState && stateData[selectedState][1] > 0
+                                                ? 'Federal + State combined'
+                                                : 'Federal tax savings'}
+                                        </p>
+                                    </div>
+
+                                    {/* Effective Reduction */}
+                                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-xl p-6 text-white">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <TrendingDown className="w-8 h-8" />
+                                            <h3 className="text-lg font-semibold">EFFECTIVE REDUCTION</h3>
+                                        </div>
+                                        <p className="text-4xl font-bold mb-2">{results.effectiveReduction.toFixed(1)}%</p>
+                                        <p className="text-sm text-purple-100">Of equipment cost</p>
+                                    </div>
+                                </div>
+
+                                {/* Detailed Breakdown */}
+                                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                    <h2 className="text-xl font-semibold mb-4 text-gray-800">Detailed Tax Breakdown</h2>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                        {/* Before Purchase */}
+                                        <div className="border-l-4 border-red-500 pl-4">
+                                            <h3 className="font-bold text-gray-800 mb-3">BEFORE Purchase</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Taxable Income:</span>
+                                                    <span className="font-semibold text-gray-800">{formatCurrency(results.income)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Federal Tax:</span>
+                                                    <span className="font-semibold text-gray-800">{formatCurrency(results.federalTaxBefore)}</span>
+                                                </div>
+                                                {selfEmployed && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Self-Employment Tax:</span>
+                                                        <span className="font-semibold text-gray-800">{formatCurrency(results.seTaxBefore)}</span>
+                                                    </div>
+                                                )}
+                                                {selectedState && stateData[selectedState][1] > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">State Tax:</span>
+                                                        <span className="font-semibold text-gray-800">{formatCurrency(results.stateTaxBefore)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* After Purchase - showing full breakdown */}
+                                        <div className="border-l-4 border-green-500 pl-4">
+                                            <h3 className="font-bold text-gray-800 mb-3">AFTER Purchase</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Equipment Purchase:</span>
+                                                    <span className="font-semibold text-gray-800">{formatCurrency(results.purchase)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Federal Section 179:</span>
+                                                    <span className="font-semibold text-gray-800">{formatCurrency(results.federalDeduction.section179)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Federal Bonus Depreciation (100%):</span>
+                                                    <span className="font-semibold text-gray-800">{formatCurrency(results.federalDeduction.bonus)}</span>
+                                                </div>
+                                                <div className="flex justify-between border-t pt-2">
+                                                    <span className="text-gray-700 font-semibold">Total Federal Deduction:</span>
+                                                    <span className="font-bold text-gray-900">{formatCurrency(results.federalDeduction.total)}</span>
+                                                </div>
+                                                {selectedState && stateData[selectedState][1] > 0 && (
+                                                    <>
+                                                        <div className="flex justify-between mt-3">
+                                                            <span className="text-gray-600">State Section 179:</span>
+                                                            <span className="font-semibold text-gray-800">{formatCurrency(results.stateDeduction.section179)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">State Bonus Depreciation:</span>
+                                                            <span className="font-semibold text-gray-800">{formatCurrency(results.stateDeduction.bonus)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between border-t pt-2">
+                                                            <span className="text-gray-700 font-semibold">Total State Deduction:</span>
+                                                            <span className="font-bold text-gray-900">{formatCurrency(results.stateDeduction.total)}</span>
+                                                        </div>
+                                                    </>
+                                                )}
+                                                <div className="flex justify-between mt-3">
+                                                    <span className="text-gray-600">New Taxable Income:</span>
+                                                    <span className="font-semibold text-gray-800">{formatCurrency(results.newTaxableIncome)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Federal Tax:</span>
+                                                    <span className="font-semibold text-gray-800">{formatCurrency(results.federalTaxAfter)}</span>
+                                                </div>
+                                                {selfEmployed && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Self-Employment Tax:</span>
+                                                        <span className="font-semibold text-gray-800">{formatCurrency(results.seTaxAfter)}</span>
+                                                    </div>
+                                                )}
+                                                {selectedState && stateData[selectedState][1] > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">State Tax:</span>
+                                                        <span className="font-semibold text-gray-800">{formatCurrency(results.stateTaxAfter)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Tax Savings Breakdown */}
+                                    <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                                        <h3 className="font-bold text-gray-800 mb-3">Tax Savings Breakdown</h3>
+                                        <div className="space-y-2 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-700">Federal Tax Savings:</span>
+                                                <span className="font-semibold text-green-600">{formatCurrency(results.federalSavings)}</span>
+                                            </div>
+                                            {selfEmployed && results.seTaxSavings > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-700">Self-Employment Tax Savings:</span>
+                                                    <span className="font-semibold text-green-600">{formatCurrency(results.seTaxSavings)}</span>
+                                                </div>
+                                            )}
+                                            {selectedState && stateData[selectedState][1] > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-700">State Tax Savings:</span>
+                                                    <span className="font-semibold text-green-600">{formatCurrency(results.stateSavings)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between border-t-2 border-blue-200 pt-2">
+                                                <span className="text-gray-900 font-bold">Total Tax Savings:</span>
+                                                <span className="font-bold text-green-600 text-lg">{formatCurrency(results.totalSavings)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Your Investment */}
+                                    <div className="bg-purple-50 rounded-lg p-4">
+                                        <h3 className="font-bold text-gray-800 mb-3">Your Investment</h3>
+                                        <div className="space-y-2 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-700">20% Down Payment:</span>
+                                                <span className="font-semibold text-gray-800">{formatCurrency(results.downPayment)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-700">Less: Tax Savings:</span>
+                                                <span className="font-semibold text-green-600">-{formatCurrency(results.totalSavings)}</span>
+                                            </div>
+                                            <div className="flex justify-between border-t-2 border-purple-200 pt-2">
+                                                <span className="text-gray-900 font-bold">
+                                                    {results.netBenefit >= 0 ? 'Net Savings:' : 'Net Out-of-Pocket:'}
+                                                </span>
+                                                <span className={`font-bold text-lg ${results.netBenefit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {results.netBenefit >= 0 ? formatCurrency(results.netBenefit) : `-${formatCurrency(Math.abs(results.netBenefit))}`}
+                                                </span>
+                                            </div>
+                                            {results.netBenefit > 0 && (
+                                                <div className="mt-3 flex items-center gap-2 text-green-700">
+                                                    <CheckCircle className="w-5 h-5" />
+                                                    <span className="text-sm font-semibold">Your tax savings exceed your down payment by {formatCurrency(results.netBenefit)}!</span>
+                                                </div>
+                                            )}
+                                            <div className="mt-4 pt-4 border-t-2 border-purple-200">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-900 font-bold">ROI on Down Payment:</span>
+                                                    <span className="font-bold text-xl text-purple-600">
+                                                        {results.downPayment > 0 ? ((results.totalSavings / results.downPayment) * 100).toFixed(1) : 0}%
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-gray-600 mt-1">Return on your 20% investment through tax savings</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* MACRS Depreciation Schedule */}
+                                <div className="bg-gray-50 rounded-lg shadow-lg p-6 mb-6">
+                                    <h2 className="text-xl font-semibold mb-4 text-gray-800">MACRS 5-Year Depreciation Schedule</h2>
+                                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                                        {macrsSchedule.map((percentage, index) => (
+                                            <div key={index} className="bg-white rounded-lg p-4 text-center border border-gray-200">
+                                                <div className="text-gray-600 text-sm mb-1">Year {index + 1}</div>
+                                                <div className="text-2xl font-bold text-gray-800">{percentage}%</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-gray-600 mt-4">
+                                        For states requiring addbacks, you may still claim MACRS depreciation on the disallowed amount over the 5-year schedule shown above.
+                                    </p>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Information Section */}
+                        <div className="bg-white rounded-lg shadow-lg p-6">
+                            <button
+                                onClick={() => setShowInfo(!showInfo)}
+                                className="flex items-center justify-between w-full text-left"
+                            >
+                                <h2 className="text-xl font-semibold text-gray-800">Additional Information</h2>
+                                {showInfo ? <ChevronUp className="w-6 h-6 text-gray-600" /> : <ChevronDown className="w-6 h-6 text-gray-600" />}
+                            </button>
+                            
+                            {showInfo && (
+                                <div className="mt-4 space-y-4 text-sm text-gray-700">
+                                    <div>
+                                        <h3 className="font-bold text-gray-800 mb-2">Version 2.3 Update - Self-Employment Tax Savings</h3>
+                                        <p>This version adds self-employment tax savings calculations for sole proprietors, single-member LLCs, and general partners. When you check the "I am self-employed" box, the calculator includes:</p>
+                                        <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
+                                            <li>Social Security tax savings (12.4% up to $176,000 wage base)</li>
+                                            <li>Medicare tax savings (2.9% on all income, no cap)</li>
+                                            <li>Additional Medicare tax savings (0.9% above threshold)</li>
+                                        </ul>
+                                        <p className="mt-2">These savings are significant and can substantially increase your total ROI from equipment purchases.</p>
+                                    </div>
+
+                                    <div>
+                                        <h3 className="font-bold text-gray-800 mb-2">Self-Employment Tax Savings</h3>
+                                        <p>Self-employed individuals (sole proprietors, single-member LLCs, and general partners) pay self-employment tax on their net business income. The self-employment tax rate for 2025 is:</p>
+                                        <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
+                                            <li><strong>Social Security:</strong> 12.4% on income up to $176,000 (2025 wage base)</li>
+                                            <li><strong>Medicare:</strong> 2.9% on all income (no cap)</li>
+                                            <li><strong>Additional Medicare:</strong> 0.9% on income above $200,000 (single) or $250,000 (married)</li>
+                                        </ul>
+                                        <p className="mt-2">When equipment deductions reduce your net self-employment income, you also save on self-employment tax. This calculator includes these savings when you check the "I am self-employed" box.</p>
+                                        <p className="mt-2 text-yellow-800 font-semibold">Note: S-Corporation owners who take W-2 wages typically do not qualify for self-employment tax savings on equipment purchases, as their income is not subject to SE tax.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<LucrumTaxCalculator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
