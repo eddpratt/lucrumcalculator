@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lucrum Tax Savings Calculator v2.3</title>
+    <title>Tax Savings Calculator v2.3</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -79,8 +79,10 @@
         );
 
         const LucrumTaxCalculator = () => {
+            const [calculatorType, setCalculatorType] = useState('lucrum');
             const [taxableIncome, setTaxableIncome] = useState('');
             const [packageCount, setPackageCount] = useState('');
+            const [equipmentPurchase, setEquipmentPurchase] = useState('');
             const [selectedState, setSelectedState] = useState('');
             const [filingStatus, setFilingStatus] = useState('single');
             const [selfEmployed, setSelfEmployed] = useState(false);
@@ -170,20 +172,41 @@
                 return recommendedPackages;
             };
 
+            const getRecommendedPurchase = (income) => {
+                const num = parseFloat(income.toString().replace(/,/g, ''));
+                if (isNaN(num)) return 0;
+                if (num < 250000) return 250000;
+                const cappedIncome = Math.min(num, 4000000);
+                const increment = 50000;
+                const recommended = Math.round(cappedIncome / increment) * increment;
+                return recommended;
+            };
+
             const handleIncomeChange = (e) => {
                 const formatted = formatInputValue(e.target.value);
                 setTaxableIncome(formatted);
             };
 
+            const handlePurchaseChange = (e) => {
+                const formatted = formatInputValue(e.target.value);
+                setEquipmentPurchase(formatted);
+            };
+
             const useRecommendedAmount = () => {
                 const income = parseFloat(taxableIncome.replace(/,/g, ''));
-                const recommended = getRecommendedPackages(income);
-                setPackageCount(recommended.toString());
+                if (calculatorType === 'lucrum') {
+                    const recommended = getRecommendedPackages(income);
+                    setPackageCount(recommended.toString());
+                } else {
+                    const recommended = getRecommendedPurchase(income);
+                    setEquipmentPurchase(recommended.toLocaleString('en-US'));
+                }
             };
 
             const resetCalculator = () => {
                 setTaxableIncome('');
                 setPackageCount('');
+                setEquipmentPurchase('');
                 setSelectedState('');
                 setFilingStatus('single');
                 setSelfEmployed(false);
@@ -295,12 +318,21 @@
             };
 
             const getStateWarning = (stateCode) => {
-                if (!stateCode || !packageCount || !stateData[stateCode]) return null;
-                const [name, rate] = stateData[stateCode];
-                const packages = parseInt(packageCount);
-                if (isNaN(packages) || packages < 3) return null;
+                if (!stateCode || !stateData[stateCode]) return null;
                 
-                const totalDeduction = packages * DEDUCTION_PER_PACKAGE;
+                let totalDeduction;
+                if (calculatorType === 'lucrum') {
+                    if (!packageCount) return null;
+                    const packages = parseInt(packageCount);
+                    if (isNaN(packages) || packages < 3) return null;
+                    totalDeduction = packages * DEDUCTION_PER_PACKAGE;
+                } else {
+                    if (!equipmentPurchase) return null;
+                    totalDeduction = parseFloat(equipmentPurchase.replace(/,/g, ''));
+                    if (isNaN(totalDeduction) || totalDeduction <= 0) return null;
+                }
+                
+                const [name, rate] = stateData[stateCode];
                 const stateCalc = calculateStateDeduction(totalDeduction, stateCode);
                 const { section179: section179Addback, bonus: bonusAddback } = stateCalc.addbacks;
                 if (section179Addback === 0 && bonusAddback === 0) return null;
@@ -327,14 +359,24 @@
 
             const calculateResults = () => {
                 const income = parseFloat(taxableIncome.replace(/,/g, ''));
-                const packages = parseInt(packageCount);
-
-                if (isNaN(income) || isNaN(packages) || packages < 3 || packages > 40) {
-                    return null;
+                
+                let cashInvestment, totalDeduction, packages;
+                
+                if (calculatorType === 'lucrum') {
+                    packages = parseInt(packageCount);
+                    if (isNaN(income) || isNaN(packages) || packages < 3 || packages > 40) {
+                        return null;
+                    }
+                    cashInvestment = packages * CASH_PER_PACKAGE;
+                    totalDeduction = packages * DEDUCTION_PER_PACKAGE;
+                } else {
+                    const purchase = parseFloat(equipmentPurchase.replace(/,/g, ''));
+                    if (isNaN(income) || isNaN(purchase) || purchase <= 0) {
+                        return null;
+                    }
+                    cashInvestment = purchase * 0.20;
+                    totalDeduction = purchase;
                 }
-
-                const cashInvestment = packages * CASH_PER_PACKAGE;
-                const totalDeduction = packages * DEDUCTION_PER_PACKAGE;
 
                 const federalDeduction = calculateFederalDeduction(totalDeduction);
                 const federalTaxBefore = calculateFederalTax(income, filingStatus);
@@ -377,6 +419,8 @@
                     packages,
                     cashInvestment,
                     totalDeduction,
+                    purchase: totalDeduction,
+                    downPayment: cashInvestment,
                     federalDeduction,
                     stateDeduction,
                     federalTaxBefore,
@@ -396,8 +440,9 @@
             };
 
             const results = calculateResults();
-            const recommendedPackages = taxableIncome ? getRecommendedPackages(parseFloat(taxableIncome.replace(/,/g, ''))) : 0;
-            const showRecommendation = taxableIncome && recommendedPackages >= 3;
+            const recommendedPackages = taxableIncome && calculatorType === 'lucrum' ? getRecommendedPackages(parseFloat(taxableIncome.replace(/,/g, ''))) : 0;
+            const recommendedPurchase = taxableIncome && calculatorType === 'implantability' ? getRecommendedPurchase(parseFloat(taxableIncome.replace(/,/g, ''))) : 0;
+            const showRecommendation = taxableIncome && ((calculatorType === 'lucrum' && recommendedPackages >= 3) || (calculatorType === 'implantability' && recommendedPurchase > 0));
             const stateWarning = selectedState ? getStateWarning(selectedState) : null;
             const macrsSchedule = [20, 32, 19.2, 11.52, 11.52, 5.76];
 
@@ -430,7 +475,17 @@
                                 <div className="flex items-center gap-4">
                                     <Calculator className="w-16 h-16" />
                                     <div>
-                                        <h1 className="text-4xl font-bold mb-2">Lucrum Tax Savings Calculator</h1>
+                                        <select
+                                            value={calculatorType}
+                                            onChange={(e) => {
+                                                setCalculatorType(e.target.value);
+                                                resetCalculator();
+                                            }}
+                                            className="text-3xl font-bold mb-2 bg-transparent text-white border-2 border-white rounded px-4 py-2 cursor-pointer hover:bg-white hover:text-blue-600 transition-colors"
+                                        >
+                                            <option value="lucrum" className="text-gray-900">Lucrum Tax Savings Calculator</option>
+                                            <option value="implantability" className="text-gray-900">Implantability Tax Savings Calculator</option>
+                                        </select>
                                         <p className="text-blue-100 text-lg">v2.3 - Section 179 + 100% Bonus Depreciation (OBBBA)</p>
                                     </div>
                                 </div>
@@ -497,13 +552,22 @@
                                     <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 flex items-start gap-3">
                                         <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
                                         <div className="flex-1">
-                                            <h3 className="font-bold text-blue-900 mb-1">Suggested: {recommendedPackages} packages</h3>
-                                            <p className="text-sm text-blue-700 mb-1">
-                                                Cash Investment: {formatCurrency(recommendedPackages * CASH_PER_PACKAGE)}
-                                            </p>
-                                            <p className="text-sm text-blue-700 mb-3">
-                                                Tax Deduction: {formatCurrency(recommendedPackages * DEDUCTION_PER_PACKAGE)}
-                                            </p>
+                                            {calculatorType === 'lucrum' ? (
+                                                <>
+                                                    <h3 className="font-bold text-blue-900 mb-1">Suggested: {recommendedPackages} packages</h3>
+                                                    <p className="text-sm text-blue-700 mb-1">
+                                                        Down Payment: {formatCurrency(recommendedPackages * CASH_PER_PACKAGE)}
+                                                    </p>
+                                                    <p className="text-sm text-blue-700 mb-3">
+                                                        Tax Deduction: {formatCurrency(recommendedPackages * DEDUCTION_PER_PACKAGE)}
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <h3 className="font-bold text-blue-900 mb-1">Suggested purchase: {formatCurrency(recommendedPurchase)}</h3>
+                                                    <p className="text-sm text-blue-700 mb-3">Based on your income level</p>
+                                                </>
+                                            )}
                                             <button
                                                 onClick={useRecommendedAmount}
                                                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
@@ -514,28 +578,45 @@
                                     </div>
                                 )}
 
-                                {/* Package Count Selection */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        <TrendingDown className="inline w-4 h-4" /> Number of Lucrum Packages (3-40)
-                                    </label>
-                                    <select
-                                        value={packageCount}
-                                        onChange={(e) => setPackageCount(e.target.value)}
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    >
-                                        <option value="">Select number of packages...</option>
-                                        {Array.from({ length: 38 }, (_, i) => i + 3).map(num => {
-                                            const cash = num * CASH_PER_PACKAGE;
-                                            const deduction = num * DEDUCTION_PER_PACKAGE;
-                                            return (
-                                                <option key={num} value={num}>
-                                                    {num} packages - {formatCurrency(cash)} investment → {formatCurrency(deduction)} deduction
-                                                </option>
-                                            );
-                                        })}
-                                    </select>
-                                </div>
+                                {/* Package Count Selection (Lucrum only) */}
+                                {calculatorType === 'lucrum' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            <TrendingDown className="inline w-4 h-4" /> Number of Lucrum Packages (3-40)
+                                        </label>
+                                        <select
+                                            value={packageCount}
+                                            onChange={(e) => setPackageCount(e.target.value)}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        >
+                                            <option value="">Select number of packages...</option>
+                                            {Array.from({ length: 38 }, (_, i) => i + 3).map(num => {
+                                                const downPayment = num * CASH_PER_PACKAGE;
+                                                return (
+                                                    <option key={num} value={num}>
+                                                        {num} packages - {formatCurrency(downPayment)} down payment
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {/* Equipment Purchase (Implantability only) */}
+                                {calculatorType === 'implantability' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            <TrendingDown className="inline w-4 h-4" /> Equipment Purchase Amount
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={equipmentPurchase}
+                                            onChange={handlePurchaseChange}
+                                            placeholder="Enter equipment purchase amount"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                )}
 
                                 {/* State Selection */}
                                 <div>
@@ -584,7 +665,7 @@
                                         </div>
                                         <p className="text-4xl font-bold mb-2">{formatCurrency(results.netBenefit)}</p>
                                         <p className="text-sm text-green-100">
-                                            ROI: {results.cashInvestment > 0 ? ((results.totalSavings / results.cashInvestment) * 100).toFixed(0) : 0}% on cash investment
+                                            ROI: {results.cashInvestment > 0 ? ((results.totalSavings / results.cashInvestment) * 100).toFixed(0) : 0}% on down payment
                                             {selfEmployed && results.seTaxSavings > 0 && ' (includes SE tax)'}
                                         </p>
                                     </div>
@@ -652,14 +733,23 @@
                                         <div className="border-l-4 border-green-500 pl-4">
                                             <h3 className="font-bold text-gray-800 mb-3">AFTER Purchase</h3>
                                             <div className="space-y-2 text-sm">
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-600">Lucrum Packages:</span>
-                                                    <span className="font-semibold text-gray-800">{results.packages} packages</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-600">Total Tax Deduction:</span>
-                                                    <span className="font-semibold text-gray-800">{formatCurrency(results.totalDeduction)}</span>
-                                                </div>
+                                                {calculatorType === 'lucrum' ? (
+                                                    <>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Lucrum Packages:</span>
+                                                            <span className="font-semibold text-gray-800">{results.packages} packages</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Total Tax Deduction:</span>
+                                                            <span className="font-semibold text-gray-800">{formatCurrency(results.totalDeduction)}</span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Equipment Purchase:</span>
+                                                        <span className="font-semibold text-gray-800">{formatCurrency(results.purchase)}</span>
+                                                    </div>
+                                                )}
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-600">Federal Section 179:</span>
                                                     <span className="font-semibold text-gray-800">{formatCurrency(results.federalDeduction.section179)}</span>
@@ -744,7 +834,9 @@
                                         <h3 className="font-bold text-gray-800 mb-3">Your Investment</h3>
                                         <div className="space-y-2 text-sm">
                                             <div className="flex justify-between">
-                                                <span className="text-gray-700">Cash Investment Required:</span>
+                                                <span className="text-gray-700">
+                                                    {calculatorType === 'lucrum' ? 'Down Payment Required:' : '20% Down Payment:'}
+                                                </span>
                                                 <span className="font-semibold text-gray-800">{formatCurrency(results.cashInvestment)}</span>
                                             </div>
                                             <div className="flex justify-between">
@@ -762,17 +854,17 @@
                                             {results.netBenefit > 0 && (
                                                 <div className="mt-3 flex items-center gap-2 text-green-700">
                                                     <CheckCircle className="w-5 h-5" />
-                                                    <span className="text-sm font-semibold">Your tax savings exceed your cash investment by {formatCurrency(results.netBenefit)}!</span>
+                                                    <span className="text-sm font-semibold">Your tax savings exceed your down payment by {formatCurrency(results.netBenefit)}!</span>
                                                 </div>
                                             )}
                                             <div className="mt-4 pt-4 border-t-2 border-purple-200">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-gray-900 font-bold">ROI on Cash Investment:</span>
+                                                    <span className="text-gray-900 font-bold">ROI on Down Payment:</span>
                                                     <span className="font-bold text-xl text-purple-600">
                                                         {results.cashInvestment > 0 ? ((results.totalSavings / results.cashInvestment) * 100).toFixed(1) : 0}%
                                                     </span>
                                                 </div>
-                                                <p className="text-xs text-gray-600 mt-1">Return on your cash investment through tax savings</p>
+                                                <p className="text-xs text-gray-600 mt-1">Return on your down payment through tax savings</p>
                                             </div>
                                         </div>
                                     </div>
@@ -808,17 +900,19 @@
                             
                             {showInfo && (
                                 <div className="mt-4 space-y-4 text-sm text-gray-700">
-                                    <div>
-                                        <h3 className="font-bold text-gray-800 mb-2">Lucrum Package Model</h3>
-                                        <p>Lucrum offers a unique leveraged depreciation structure where clients purchase technology packages with minimal cash investment:</p>
-                                        <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
-                                            <li><strong>Cash Investment:</strong> $16,666.67 per package (approximately 16% down payment)</li>
-                                            <li><strong>Tax Deduction:</strong> ~$104,000 per package (equipment cost + financing)</li>
-                                            <li><strong>Package Range:</strong> Minimum 3 packages ($50K investment), maximum 40 packages ($666,667 investment)</li>
-                                            <li><strong>Financing:</strong> Balance paid through Lucrum reward points over 15 years (no additional cash payments required if points are earned)</li>
-                                        </ul>
-                                        <p className="mt-2">This creates a 6.24:1 leverage ratio, allowing clients to claim tax deductions significantly larger than their cash investment.</p>
-                                    </div>
+                                    {calculatorType === 'lucrum' && (
+                                        <div>
+                                            <h3 className="font-bold text-gray-800 mb-2">Lucrum Package Model</h3>
+                                            <p>Lucrum offers a unique leveraged depreciation structure where clients purchase technology packages with a minimal down payment:</p>
+                                            <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
+                                                <li><strong>Down Payment:</strong> $16,666.67 per package (approximately 16% down payment)</li>
+                                                <li><strong>Tax Deduction:</strong> ~$104,000 per package (equipment cost + financing)</li>
+                                                <li><strong>Package Range:</strong> Minimum 3 packages ($50K down payment), maximum 40 packages ($666,667 down payment)</li>
+                                                <li><strong>Financing:</strong> Balance paid through Lucrum reward points over 15 years (no additional cash payments required if points are earned)</li>
+                                            </ul>
+                                            <p className="mt-2">This creates a 6.24:1 leverage ratio, allowing clients to claim tax deductions significantly larger than their down payment.</p>
+                                        </div>
+                                    )}
 
                                     <div>
                                         <h3 className="font-bold text-gray-800 mb-2">Version 2.3 Update - Self-Employment Tax Savings</h3>
